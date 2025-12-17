@@ -68,20 +68,13 @@ class GoalService {
   }
 
   // Obtener todas las metas
-  Future<Map<String, dynamic>> getGoals({String? status}) async {
+  Future<Map<String, dynamic>> getGoals() async {
     final client = _createClient();
+    final token = await _tokenService.getToken();
 
     try {
-      final token = await _tokenService.getToken();
-
-      // Construir URL con parámetros opcionales
-      String url = baseUrl;
-      if (status != null) {
-        url += '?status=$status';
-      }
-
       final response = await client.get(
-        Uri.parse(url),
+        Uri.parse(baseUrl),
         headers: {
           'Content-Type': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',
@@ -92,11 +85,7 @@ class GoalService {
         final data = jsonDecode(response.body);
         return {'success': true, 'data': data};
       } else {
-        final error = jsonDecode(response.body);
-        return {
-          'success': false,
-          'message': error['message'] ?? 'Error al obtener las metas',
-        };
+        return {'success': false, 'message': 'Error al cargar metas'};
       }
     } catch (e) {
       return {'success': false, 'message': 'Error de conexión: $e'};
@@ -137,15 +126,13 @@ class GoalService {
     }
   }
 
-  // Obtener meta por ID
-  Future<Map<String, dynamic>> getGoalById(String id) async {
+  Future<Map<String, dynamic>> getGoalById(String goalId) async {
     final client = _createClient();
+    final token = await _tokenService.getToken();
 
     try {
-      final token = await _tokenService.getToken();
-
       final response = await client.get(
-        Uri.parse('$baseUrl/$id'),
+        Uri.parse('$baseUrl/$goalId'),
         headers: {
           'Content-Type': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',
@@ -154,13 +141,9 @@ class GoalService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return {'success': true, 'data': data};
+        return {'success': true, 'data': data['data']};
       } else {
-        final error = jsonDecode(response.body);
-        return {
-          'success': false,
-          'message': error['message'] ?? 'Error al obtener la meta',
-        };
+        return {'success': false, 'message': 'Error al cargar meta'};
       }
     } catch (e) {
       return {'success': false, 'message': 'Error de conexión: $e'};
@@ -169,47 +152,44 @@ class GoalService {
     }
   }
 
-  // Actualizar meta
   Future<Map<String, dynamic>> updateGoal({
-    required String id,
-    required String name,
-    required double targetAmount,
-    required double currentAmount,
-    required String deadline,
-    required String status,
+    required String goalId,
+    String? name,
+    double? targetAmount,
+    String? deadline,
+    String? status,
   }) async {
     final client = _createClient();
+    final token = await _tokenService.getToken();
 
     try {
-      final token = await _tokenService.getToken();
+      final body = <String, dynamic>{};
+      if (name != null) body['name'] = name;
+      if (targetAmount != null) body['target_amount'] = targetAmount;
+      if (deadline != null) body['deadline'] = deadline;
+      if (status != null) body['status'] = status;
 
       final response = await client.put(
-        Uri.parse('$baseUrl/$id'),
+        Uri.parse('$baseUrl/$goalId'),
         headers: {
           'Content-Type': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',
         },
-        body: jsonEncode({
-          'name': name,
-          'target_amount': targetAmount,
-          'current_amount': currentAmount,
-          'deadline': deadline,
-          'status': status,
-        }),
+        body: jsonEncode(body),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return {
           'success': true,
-          'data': data,
+          'data': data['data'],
           'message': 'Meta actualizada exitosamente',
         };
       } else {
         final error = jsonDecode(response.body);
         return {
           'success': false,
-          'message': error['message'] ?? 'Error al actualizar la meta',
+          'message': error['message'] ?? 'Error al actualizar meta',
         };
       }
     } catch (e) {
@@ -219,47 +199,14 @@ class GoalService {
     }
   }
 
-  // Eliminar meta
-  Future<Map<String, dynamic>> deleteGoal(String id) async {
-    final client = _createClient();
-
-    try {
-      final token = await _tokenService.getToken();
-
-      final response = await client.delete(
-        Uri.parse('$baseUrl/$id'),
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        return {'success': true, 'message': 'Meta eliminada exitosamente'};
-      } else {
-        final error = jsonDecode(response.body);
-        return {
-          'success': false,
-          'message': error['message'] ?? 'Error al eliminar la meta',
-        };
-      }
-    } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
-    } finally {
-      client.close();
-    }
-  }
-
-  // Agregar fondos a una meta
   Future<Map<String, dynamic>> addFunds({
     required String goalId,
     required double amount,
   }) async {
     final client = _createClient();
+    final token = await _tokenService.getToken();
 
     try {
-      final token = await _tokenService.getToken();
-
       final response = await client.post(
         Uri.parse('$baseUrl/$goalId/add-funds'),
         headers: {
@@ -269,11 +216,11 @@ class GoalService {
         body: jsonEncode({'amount': amount}),
       );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return {
           'success': true,
-          'data': data,
+          'data': data['data'],
           'message': 'Fondos agregados exitosamente',
         };
       } else {
@@ -290,16 +237,14 @@ class GoalService {
     }
   }
 
-  // Retirar fondos de una meta
   Future<Map<String, dynamic>> withdrawFunds({
     required String goalId,
     required double amount,
   }) async {
     final client = _createClient();
+    final token = await _tokenService.getToken();
 
     try {
-      final token = await _tokenService.getToken();
-
       final response = await client.post(
         Uri.parse('$baseUrl/$goalId/withdraw-funds'),
         headers: {
@@ -309,11 +254,11 @@ class GoalService {
         body: jsonEncode({'amount': amount}),
       );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return {
           'success': true,
-          'data': data,
+          'data': data['data'],
           'message': 'Fondos retirados exitosamente',
         };
       } else {
@@ -321,6 +266,35 @@ class GoalService {
         return {
           'success': false,
           'message': error['message'] ?? 'Error al retirar fondos',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión: $e'};
+    } finally {
+      client.close();
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteGoal(String goalId) async {
+    final client = _createClient();
+    final token = await _tokenService.getToken();
+
+    try {
+      final response = await client.delete(
+        Uri.parse('$baseUrl/$goalId'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return {'success': true, 'message': 'Meta eliminada exitosamente'};
+      } else {
+        final error = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': error['message'] ?? 'Error al eliminar meta',
         };
       }
     } catch (e) {
