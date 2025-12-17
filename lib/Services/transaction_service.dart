@@ -92,8 +92,9 @@ class TransactionService {
       if (categoryId != null) queryParams['category_id'] = categoryId;
       if (startDate != null) queryParams['start_date'] = startDate;
       if (endDate != null) queryParams['end_date'] = endDate;
-      if (isRecurring != null)
+      if (isRecurring != null) {
         queryParams['is_recurring'] = isRecurring.toString();
+      }
 
       final uri = Uri.parse(baseUrl).replace(queryParameters: queryParams);
 

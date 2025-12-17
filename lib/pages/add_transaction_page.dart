@@ -16,10 +16,11 @@ class AddTransactionPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Crear Nuevo Registro',
-            style: Theme.of(
-              context,
-            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            'Crear nuevo registro',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              fontSize: 28,
+            ),
           ),
           const SizedBox(height: 8),
           Text(

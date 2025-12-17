@@ -16,9 +16,10 @@ class StatisticsPage extends StatelessWidget {
         children: [
           Text(
             'Estadísticas y Análisis',
-            style: Theme.of(
-              context,
-            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              fontSize: 28,
+            ),
           ),
           const SizedBox(height: 8),
           Text(

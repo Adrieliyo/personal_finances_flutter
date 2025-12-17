@@ -506,7 +506,7 @@ class _CreateTransactionPageState extends State<CreateTransactionPage> {
                       )
                     else
                       DropdownButtonFormField<String>(
-                        value: _selectedAccountId,
+                        initialValue: _selectedAccountId,
                         decoration: InputDecoration(
                           hintText: 'Selecciona una cuenta',
                           border: OutlineInputBorder(
@@ -590,7 +590,7 @@ class _CreateTransactionPageState extends State<CreateTransactionPage> {
                       )
                     else
                       DropdownButtonFormField<String>(
-                        value: _selectedCategoryId,
+                        initialValue: _selectedCategoryId,
                         decoration: InputDecoration(
                           hintText: 'Selecciona una categoría',
                           border: OutlineInputBorder(

@@ -50,6 +50,32 @@ class AccountService {
     }
   }
 
+  Future<Map<String, dynamic>> getBalance() async {
+    final client = _createClient();
+    final token = await _tokenService.getToken();
+
+    try {
+      final response = await client.get(
+        Uri.parse('$baseUrl/balance'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {'success': true, 'data': data['data']};
+      } else {
+        return {'success': false, 'message': 'Error al cargar balance'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión: $e'};
+    } finally {
+      client.close();
+    }
+  }
+
   // Crear nueva cuenta
   Future<Map<String, dynamic>> createAccount({
     required String name,

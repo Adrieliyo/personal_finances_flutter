@@ -1,116 +1,3 @@
-// import 'dart:convert';
-// import 'package:http/http.dart' as http;
-// import 'token_service.dart';
-
-// class AuthService {
-//   static const String baseUrl = 'http://localhost:4000/api/auth';
-//   final _tokenService = TokenService();
-
-//   Future<Map<String, dynamic>> login(String email, String password) async {
-//     try {
-//       final response = await http.post(
-//         Uri.parse('$baseUrl/login'),
-//         headers: {'Content-Type': 'application/json'},
-//         body: jsonEncode({'emailOrUsername': email, 'password': password}),
-//       );
-
-//       if (response.statusCode == 200) {
-//         final data = jsonDecode(response.body);
-
-//         // Guardar token y datos del usuario
-//         if (data['token'] != null) {
-//           await _tokenService.saveToken(data['token']);
-//         }
-
-//         if (data['user'] != null) {
-//           await _tokenService.saveUserData(jsonEncode(data['user']));
-//         }
-
-//         return {'success': true, 'data': data};
-//       } else {
-//         final error = jsonDecode(response.body);
-//         return {
-//           'success': false,
-//           'message': error['message'] ?? 'Error al iniciar sesión',
-//         };
-//       }
-//     } catch (e) {
-//       return {'success': false, 'message': 'Error de conexión: $e'};
-//     }
-//   }
-
-//   // Logout con llamada al backend
-//   Future<Map<String, dynamic>> logout() async {
-//     try {
-//       final token = await _tokenService.getToken();
-
-//       if (token != null) {
-//         final response = await http.post(
-//           Uri.parse('$baseUrl/logout'),
-//           headers: {
-//             'Content-Type': 'application/json',
-//             'Authorization': 'Bearer $token',
-//           },
-//         );
-
-//         // Eliminar token local independientemente de la respuesta del servidor
-//         await _tokenService.deleteToken();
-
-//         if (response.statusCode == 200) {
-//           return {'success': true, 'message': 'Sesión cerrada correctamente'};
-//         } else {
-//           // Aunque falle el backend, ya eliminamos el token local
-//           return {'success': true, 'message': 'Sesión cerrada localmente'};
-//         }
-//       } else {
-//         // No hay token, solo limpiar datos locales
-//         await _tokenService.deleteToken();
-//         return {'success': true, 'message': 'Sesión cerrada'};
-//       }
-//     } catch (e) {
-//       // En caso de error de conexión, eliminar token local de todas formas
-//       await _tokenService.deleteToken();
-//       return {'success': true, 'message': 'Sesión cerrada localmente'};
-//     }
-//   }
-
-//   // Verificar autenticación
-//   Future<bool> isAuthenticated() async {
-//     return await _tokenService.isAuthenticated();
-//   }
-
-//   // Obtener token para hacer peticiones autenticadas
-//   Future<String?> getToken() async {
-//     return await _tokenService.getToken();
-//   }
-
-//   // Hacer peticiones autenticadas
-//   Future<http.Response> authenticatedRequest(
-//     String endpoint, {
-//     String method = 'GET',
-//     Map<String, dynamic>? body,
-//   }) async {
-//     final token = await getToken();
-
-//     final headers = {
-//       'Content-Type': 'application/json',
-//       if (token != null) 'Authorization': 'Bearer $token',
-//     };
-
-//     final uri = Uri.parse('$baseUrl$endpoint');
-
-//     switch (method.toUpperCase()) {
-//       case 'POST':
-//         return await http.post(uri, headers: headers, body: jsonEncode(body));
-//       case 'PUT':
-//         return await http.put(uri, headers: headers, body: jsonEncode(body));
-//       case 'DELETE':
-//         return await http.delete(uri, headers: headers);
-//       default:
-//         return await http.get(uri, headers: headers);
-//     }
-//   }
-// }
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:http/browser_client.dart';
@@ -131,29 +18,82 @@ class AuthService {
     return http.Client();
   }
 
-  Future<Map<String, dynamic>> login(String email, String password) async {
+  // Método de registro
+  Future<Map<String, dynamic>> register({
+    required String username,
+    required String email,
+    required String fullName,
+    required String password,
+    String currency = 'MXN',
+  }) async {
+    final client = _createClient();
+
+    try {
+      final response = await client.post(
+        Uri.parse('$baseUrl/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'username': username,
+          'email': email,
+          'full_name': fullName,
+          'password': password,
+          'currency': currency,
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+
+        // Guardar token si viene en la respuesta
+        if (data['token'] != null) {
+          await _tokenService.saveToken(data['token']);
+        }
+
+        return {
+          'success': true,
+          'data': data,
+          'message': 'Usuario registrado exitosamente',
+        };
+      } else {
+        final error = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': error['message'] ?? 'Error al registrar usuario',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión: $e'};
+    } finally {
+      client.close();
+    }
+  }
+
+  Future<Map<String, dynamic>> login({
+    required String username,
+    required String password,
+  }) async {
     final client = _createClient();
 
     try {
       final response = await client.post(
         Uri.parse('$baseUrl/login'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'emailOrUsername': email, 'password': password}),
+        body: jsonEncode({'emailOrUsername': username, 'password': password}),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
-        // Guardar token si viene en el body (respaldo)
+        // Guardar token
         if (data['token'] != null) {
           await _tokenService.saveToken(data['token']);
         }
 
-        if (data['user'] != null) {
-          await _tokenService.saveUserData(jsonEncode(data['user']));
-        }
-
-        return {'success': true, 'data': data};
+        return {
+          'success': true,
+          'data': data,
+          'message': 'Inicio de sesión exitoso',
+        };
       } else {
         final error = jsonDecode(response.body);
         return {
