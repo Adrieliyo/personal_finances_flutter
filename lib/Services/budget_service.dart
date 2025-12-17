@@ -8,7 +8,6 @@ class BudgetService {
   static const String baseUrl = 'http://localhost:4000/api/budgets';
   final _tokenService = TokenService();
 
-  // Crear cliente HTTP que incluye credenciales para web
   http.Client _createClient() {
     if (kIsWeb) {
       final client = BrowserClient();
@@ -18,17 +17,98 @@ class BudgetService {
     return http.Client();
   }
 
-  // Crear nuevo presupuesto
+  Future<Map<String, dynamic>> getBudgets({String? period}) async {
+    final client = _createClient();
+    final token = await _tokenService.getToken();
+
+    try {
+      var uri = Uri.parse(baseUrl);
+      if (period != null) {
+        uri = Uri.parse('$baseUrl?period=$period');
+      }
+
+      final response = await client.get(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {'success': true, 'data': data};
+      } else {
+        return {'success': false, 'message': 'Error al cargar presupuestos'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión: $e'};
+    } finally {
+      client.close();
+    }
+  }
+
+  Future<Map<String, dynamic>> getBudgetSummary() async {
+    final client = _createClient();
+    final token = await _tokenService.getToken();
+
+    try {
+      final response = await client.get(
+        Uri.parse('$baseUrl/summary'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {'success': true, 'data': data['data']};
+      } else {
+        return {'success': false, 'message': 'Error al cargar resumen'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión: $e'};
+    } finally {
+      client.close();
+    }
+  }
+
+  Future<Map<String, dynamic>> getBudgetById(String budgetId) async {
+    final client = _createClient();
+    final token = await _tokenService.getToken();
+
+    try {
+      final response = await client.get(
+        Uri.parse('$baseUrl/$budgetId'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {'success': true, 'data': data['data']};
+      } else {
+        return {'success': false, 'message': 'Error al cargar presupuesto'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión: $e'};
+    } finally {
+      client.close();
+    }
+  }
+
   Future<Map<String, dynamic>> createBudget({
     required String categoryId,
     required double amountLimit,
     required String period,
   }) async {
     final client = _createClient();
+    final token = await _tokenService.getToken();
 
     try {
-      final token = await _tokenService.getToken();
-
       final response = await client.post(
         Uri.parse(baseUrl),
         headers: {
@@ -42,18 +122,18 @@ class BudgetService {
         }),
       );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      if (response.statusCode == 201) {
         final data = jsonDecode(response.body);
         return {
           'success': true,
-          'data': data,
+          'data': data['data'],
           'message': 'Presupuesto creado exitosamente',
         };
       } else {
         final error = jsonDecode(response.body);
         return {
           'success': false,
-          'message': error['message'] ?? 'Error al crear el presupuesto',
+          'message': error['message'] ?? 'Error al crear presupuesto',
         };
       }
     } catch (e) {
@@ -63,107 +143,42 @@ class BudgetService {
     }
   }
 
-  // Obtener todos los presupuestos
-  Future<Map<String, dynamic>> getBudgets() async {
-    final client = _createClient();
-
-    try {
-      final token = await _tokenService.getToken();
-
-      final response = await client.get(
-        Uri.parse(baseUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return {'success': true, 'data': data};
-      } else {
-        final error = jsonDecode(response.body);
-        return {
-          'success': false,
-          'message': error['message'] ?? 'Error al obtener los presupuestos',
-        };
-      }
-    } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
-    } finally {
-      client.close();
-    }
-  }
-
-  // Obtener presupuesto por ID
-  Future<Map<String, dynamic>> getBudgetById(String id) async {
-    final client = _createClient();
-
-    try {
-      final token = await _tokenService.getToken();
-
-      final response = await client.get(
-        Uri.parse('$baseUrl/$id'),
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return {'success': true, 'data': data};
-      } else {
-        final error = jsonDecode(response.body);
-        return {
-          'success': false,
-          'message': error['message'] ?? 'Error al obtener el presupuesto',
-        };
-      }
-    } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
-    } finally {
-      client.close();
-    }
-  }
-
-  // Actualizar presupuesto
   Future<Map<String, dynamic>> updateBudget({
-    required String id,
-    required String categoryId,
-    required double amountLimit,
-    required String period,
+    required String budgetId,
+    String? categoryId,
+    double? amountLimit,
+    String? period,
   }) async {
     final client = _createClient();
+    final token = await _tokenService.getToken();
 
     try {
-      final token = await _tokenService.getToken();
+      final body = <String, dynamic>{};
+      if (categoryId != null) body['category_id'] = categoryId;
+      if (amountLimit != null) body['amount_limit'] = amountLimit;
+      if (period != null) body['period'] = period;
 
       final response = await client.put(
-        Uri.parse('$baseUrl/$id'),
+        Uri.parse('$baseUrl/$budgetId'),
         headers: {
           'Content-Type': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',
         },
-        body: jsonEncode({
-          'category_id': categoryId,
-          'amount_limit': amountLimit,
-          'period': period,
-        }),
+        body: jsonEncode(body),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return {
           'success': true,
-          'data': data,
+          'data': data['data'],
           'message': 'Presupuesto actualizado exitosamente',
         };
       } else {
         final error = jsonDecode(response.body);
         return {
           'success': false,
-          'message': error['message'] ?? 'Error al actualizar el presupuesto',
+          'message': error['message'] ?? 'Error al actualizar presupuesto',
         };
       }
     } catch (e) {
@@ -173,15 +188,13 @@ class BudgetService {
     }
   }
 
-  // Eliminar presupuesto
-  Future<Map<String, dynamic>> deleteBudget(String id) async {
+  Future<Map<String, dynamic>> deleteBudget(String budgetId) async {
     final client = _createClient();
+    final token = await _tokenService.getToken();
 
     try {
-      final token = await _tokenService.getToken();
-
       final response = await client.delete(
-        Uri.parse('$baseUrl/$id'),
+        Uri.parse('$baseUrl/$budgetId'),
         headers: {
           'Content-Type': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',
@@ -197,7 +210,7 @@ class BudgetService {
         final error = jsonDecode(response.body);
         return {
           'success': false,
-          'message': error['message'] ?? 'Error al eliminar el presupuesto',
+          'message': error['message'] ?? 'Error al eliminar presupuesto',
         };
       }
     } catch (e) {
