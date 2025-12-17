@@ -8,7 +8,6 @@ class CategoryService {
   static const String baseUrl = 'http://localhost:4000/api/categories';
   final _tokenService = TokenService();
 
-  // Crear cliente HTTP que incluye credenciales para web
   http.Client _createClient() {
     if (kIsWeb) {
       final client = BrowserClient();
@@ -18,16 +17,97 @@ class CategoryService {
     return http.Client();
   }
 
-  // Crear nueva categoría
+  Future<Map<String, dynamic>> getCategories({String? type}) async {
+    final client = _createClient();
+    final token = await _tokenService.getToken();
+
+    try {
+      var uri = Uri.parse(baseUrl);
+      if (type != null) {
+        uri = Uri.parse('$baseUrl?type=$type');
+      }
+
+      final response = await client.get(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {'success': true, 'data': data};
+      } else {
+        return {'success': false, 'message': 'Error al cargar categorías'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión: $e'};
+    } finally {
+      client.close();
+    }
+  }
+
+  Future<Map<String, dynamic>> getCategoryStats() async {
+    final client = _createClient();
+    final token = await _tokenService.getToken();
+
+    try {
+      final response = await client.get(
+        Uri.parse('$baseUrl/stats'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {'success': true, 'data': data['data']};
+      } else {
+        return {'success': false, 'message': 'Error al cargar estadísticas'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión: $e'};
+    } finally {
+      client.close();
+    }
+  }
+
+  Future<Map<String, dynamic>> getCategoryById(String categoryId) async {
+    final client = _createClient();
+    final token = await _tokenService.getToken();
+
+    try {
+      final response = await client.get(
+        Uri.parse('$baseUrl/$categoryId'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {'success': true, 'data': data['data']};
+      } else {
+        return {'success': false, 'message': 'Error al cargar categoría'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Error de conexión: $e'};
+    } finally {
+      client.close();
+    }
+  }
+
   Future<Map<String, dynamic>> createCategory({
     required String name,
     required String type,
   }) async {
     final client = _createClient();
+    final token = await _tokenService.getToken();
 
     try {
-      final token = await _tokenService.getToken();
-
       final response = await client.post(
         Uri.parse(baseUrl),
         headers: {
@@ -37,18 +117,18 @@ class CategoryService {
         body: jsonEncode({'name': name, 'type': type}),
       );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      if (response.statusCode == 201) {
         final data = jsonDecode(response.body);
         return {
           'success': true,
-          'data': data,
+          'data': data['data'],
           'message': 'Categoría creada exitosamente',
         };
       } else {
         final error = jsonDecode(response.body);
         return {
           'success': false,
-          'message': error['message'] ?? 'Error al crear la categoría',
+          'message': error['message'] ?? 'Error al crear categoría',
         };
       }
     } catch (e) {
@@ -58,102 +138,40 @@ class CategoryService {
     }
   }
 
-  // Obtener todas las categorías
-  Future<Map<String, dynamic>> getCategories() async {
-    final client = _createClient();
-
-    try {
-      final token = await _tokenService.getToken();
-
-      final response = await client.get(
-        Uri.parse(baseUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return {'success': true, 'data': data};
-      } else {
-        final error = jsonDecode(response.body);
-        return {
-          'success': false,
-          'message': error['message'] ?? 'Error al obtener las categorías',
-        };
-      }
-    } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
-    } finally {
-      client.close();
-    }
-  }
-
-  // Obtener categoría por ID
-  Future<Map<String, dynamic>> getCategoryById(String id) async {
-    final client = _createClient();
-
-    try {
-      final token = await _tokenService.getToken();
-
-      final response = await client.get(
-        Uri.parse('$baseUrl/$id'),
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return {'success': true, 'data': data};
-      } else {
-        final error = jsonDecode(response.body);
-        return {
-          'success': false,
-          'message': error['message'] ?? 'Error al obtener la categoría',
-        };
-      }
-    } catch (e) {
-      return {'success': false, 'message': 'Error de conexión: $e'};
-    } finally {
-      client.close();
-    }
-  }
-
-  // Actualizar categoría
   Future<Map<String, dynamic>> updateCategory({
-    required String id,
-    required String name,
-    required String type,
+    required String categoryId,
+    String? name,
+    String? type,
   }) async {
     final client = _createClient();
+    final token = await _tokenService.getToken();
 
     try {
-      final token = await _tokenService.getToken();
+      final body = <String, dynamic>{};
+      if (name != null) body['name'] = name;
+      if (type != null) body['type'] = type;
 
       final response = await client.put(
-        Uri.parse('$baseUrl/$id'),
+        Uri.parse('$baseUrl/$categoryId'),
         headers: {
           'Content-Type': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',
         },
-        body: jsonEncode({'name': name, 'type': type}),
+        body: jsonEncode(body),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return {
           'success': true,
-          'data': data,
+          'data': data['data'],
           'message': 'Categoría actualizada exitosamente',
         };
       } else {
         final error = jsonDecode(response.body);
         return {
           'success': false,
-          'message': error['message'] ?? 'Error al actualizar la categoría',
+          'message': error['message'] ?? 'Error al actualizar categoría',
         };
       }
     } catch (e) {
@@ -163,15 +181,13 @@ class CategoryService {
     }
   }
 
-  // Eliminar categoría
-  Future<Map<String, dynamic>> deleteCategory(String id) async {
+  Future<Map<String, dynamic>> deleteCategory(String categoryId) async {
     final client = _createClient();
+    final token = await _tokenService.getToken();
 
     try {
-      final token = await _tokenService.getToken();
-
       final response = await client.delete(
-        Uri.parse('$baseUrl/$id'),
+        Uri.parse('$baseUrl/$categoryId'),
         headers: {
           'Content-Type': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',
@@ -184,7 +200,7 @@ class CategoryService {
         final error = jsonDecode(response.body);
         return {
           'success': false,
-          'message': error['message'] ?? 'Error al eliminar la categoría',
+          'message': error['message'] ?? 'Error al eliminar categoría',
         };
       }
     } catch (e) {
